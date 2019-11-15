@@ -1,7 +1,7 @@
 defmodule ParserCombinator do
   def input do
     " select  column
-      from table"
+      from ( select v2 from table ) "
   end
 
   def run do
@@ -16,7 +16,8 @@ defmodule ParserCombinator do
       keyword(:select),
       separated_list(token(), char(?,)),
       keyword(:from),
-      token()
+      # token(),
+      choice([token(), subquery()])
     ])
     |> map(fn [_select_kw, columns, _from_kw, from] ->
       %{
@@ -25,6 +26,21 @@ defmodule ParserCombinator do
         from: from
       }
     end)
+  end
+
+  defp lazy(fun) do
+    fn input ->
+      fun.().(input)
+    end
+  end
+
+  defp subquery() do
+    sequence([
+      char(?(),
+      lazy(fn -> select_statement() end),
+      char(?))
+    ])
+    |> map(fn [_open_paren, subquery, _closing_paren] -> subquery end)
   end
 
   def char() do
@@ -104,10 +120,8 @@ defmodule ParserCombinator do
           {:error, "None of the parsers suceeded"}
 
         [parser | rest_parsers] ->
-          case parser.(input) do
-            {:ok, term, rest} -> {:ok, term, rest}
-            {:error, _} -> choice(rest_parsers).(input)
-          end
+          with {:error, _} <- parser.(input),
+               do: choice(rest_parsers).(input)
       end
     end
   end
