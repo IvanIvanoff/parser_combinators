@@ -3,6 +3,38 @@ defmodule ParserCombinatorTest do
   doctest ParserCombinator
   alias ParserCombinator, as: PS
 
+  describe "argument list" do
+    test "integer argument" do
+      input = "10"
+      parser = PS.argument_list()
+      assert parser.(input) == {:ok, [10], ""}
+    end
+
+    test "string argument" do
+      input = "'str'"
+      parser = PS.argument_list()
+      assert parser.(input) == {:ok, ["str"], ""}
+    end
+
+    test "float argument" do
+      input = "2.55"
+      parser = PS.argument_list()
+      assert parser.(input) == {:ok, [2.55], ""}
+    end
+
+    test "variable" do
+      input = "btc"
+      parser = PS.argument_list()
+      assert parser.(input) == {:ok, ["btc"], ""}
+    end
+
+    test "arguments" do
+      input = "10,'bitcoin', 'asd', 12.5"
+      parser = PS.argument_list()
+      assert parser.(input) == {:ok, [10, "bitcoin", "asd", 12.5], ""}
+    end
+  end
+
   describe "function call" do
     test "0 arity function" do
       input = "time()"
@@ -23,7 +55,7 @@ defmodule ParserCombinatorTest do
       parser = PS.function_call()
 
       assert parser.(input) ==
-               {:ok, %{arguments: ["10", "20"], name: "percent_change", type: :function}, ""}
+               {:ok, %{arguments: [10, 20], name: "percent_change", type: :function}, ""}
     end
   end
 
@@ -116,7 +148,7 @@ defmodule ParserCombinatorTest do
     test "missing columns" do
       input = "select from table"
       parser = PS.select_statement()
-      assert {:error, "acceptor not satisfied"} == parser.(input)
+      assert {:error, "acceptor not satisfied on term '\"table\"'"} == parser.(input)
     end
 
     test "simple query" do

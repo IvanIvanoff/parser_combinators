@@ -2,6 +2,7 @@ defmodule ParserCombinator do
   @open_paren ?(
   @close_paren ?)
   @coma ?,
+  @single_quote ?'
 
   def input do
     "SELECT range('bitcoin', '2019-01-01 00:00:00', '2019-01-10 00:00:00', '1d') AS btc_price
@@ -29,24 +30,32 @@ defmodule ParserCombinator do
     ])
   end
 
+  def argument_list() do
+    separated_list(
+      choice([token(string()), token(number()), token()]),
+      char(@coma)
+    )
+  end
+
   def function_call() do
     sequence([
       token(),
-      char(@open_paren),
+      token(char(@open_paren)),
       choice([
-        token(char(@close_paren)),
-        sequence([separated_list(token(), char(@coma)), char(@close_paren)])
-      ])
+        argument_list(),
+        many(empty())
+      ]),
+      token(char(@close_paren))
     ])
     |> map(fn
-      [fun_name, _open_paren, [args, _close_paren]] ->
+      [fun_name, _open_paren, args, _close_paren] when is_list(args) ->
         %{
           type: :function,
           name: fun_name,
           arguments: args
         }
 
-      [fun_name, _open_paren, _close_paren] = list ->
+      [fun_name, _open_paren, _args, _close_paren] ->
         %{
           type: :function,
           name: fun_name,
@@ -84,9 +93,9 @@ defmodule ParserCombinator do
   def range() do
     sequence([
       keyword(:range),
-      token(char(?()),
+      token(char(@open_paren)),
       separated_list(token(string()), char(@coma)),
-      token(char(?))),
+      token(char(@close_paren)),
       keyword(:as),
       token()
     ])
@@ -114,9 +123,9 @@ defmodule ParserCombinator do
 
   def string() do
     sequence([
-      char(?'),
-      many(char_except(?')),
-      char(?')
+      char(@single_quote),
+      many(char_except(@single_quote)),
+      char(@single_quote)
     ])
     |> map(fn [_open_quote, string, _close_quote] ->
       string |> to_string()
@@ -131,9 +140,9 @@ defmodule ParserCombinator do
 
   def subquery() do
     sequence([
-      token(char(?()),
+      token(char(@open_paren)),
       lazy(fn -> select_statement() end),
-      token(char(?)))
+      token(char(@close_paren))
     ])
     |> map(fn [_open_paren, subquery, _closing_paren] -> subquery end)
   end
@@ -185,9 +194,11 @@ defmodule ParserCombinator do
       sequence([many(digit()), char(?.), many(digit())]),
       many(digit())
     ])
+    |> satisfy(fn term -> length(term) > 0 end)
     |> map(fn
       [_first_part, _dot, _second_part] = list -> list |> List.flatten() |> List.to_float()
-      number -> number |> List.to_integer()
+      [_ | _] = number -> number |> List.to_integer()
+      result -> {:error, "Cannot parse a number. Got '#{inspect(result)}'"}
     end)
   end
 
@@ -260,7 +271,7 @@ defmodule ParserCombinator do
         if(acceptor.(term)) do
           {:ok, term, rest}
         else
-          {:error, "acceptor not satisfied"}
+          {:error, "acceptor not satisfied on term '#{inspect(term)}'"}
         end
       end
     end
