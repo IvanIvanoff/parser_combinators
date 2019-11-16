@@ -1,7 +1,9 @@
 defmodule ParserCombinator do
   def input do
     " select  column
-      from ( select v2 from table ) "
+      from   \n( \n select v2 from table
+      )
+      "
   end
 
   def run do
@@ -11,13 +13,12 @@ defmodule ParserCombinator do
     parser.(input)
   end
 
-  defp select_statement() do
+  def select_statement() do
     sequence([
       keyword(:select),
       separated_list(token(), char(?,)),
       keyword(:from),
-      # token(),
-      choice([token(), subquery()])
+      choice([subquery(), token()])
     ])
     |> map(fn [_select_kw, columns, _from_kw, from] ->
       %{
@@ -28,28 +29,19 @@ defmodule ParserCombinator do
     end)
   end
 
-  defp lazy(fun) do
+  def lazy(fun) do
     fn input ->
       fun.().(input)
     end
   end
 
-  defp subquery() do
+  def subquery() do
     sequence([
-      char(?(),
+      token(char(?()),
       lazy(fn -> select_statement() end),
-      char(?))
+      token(char(?)))
     ])
     |> map(fn [_open_paren, subquery, _closing_paren] -> subquery end)
-  end
-
-  def char() do
-    fn input ->
-      case input do
-        "" -> {:error, "cannot parse a char"}
-        <<char::utf8, rest::binary>> -> {:ok, char, rest}
-      end
-    end
   end
 
   def separated_list(element_parser, separator_parser) do
@@ -66,8 +58,8 @@ defmodule ParserCombinator do
     token() |> satisfy(fn term -> String.downcase(term) == String.downcase(to_string(word)) end)
   end
 
-  def token() do
-    sequence([many(empty()), identifier(), many(empty())])
+  def token(parser \\ identifier()) do
+    sequence([many(empty()), parser, many(empty())])
     |> map(fn [_ls, term, _ts] -> term end)
   end
 
@@ -75,7 +67,17 @@ defmodule ParserCombinator do
     choice([char(?\s), char(?\t), char(?\n), char(?\r)])
   end
 
+  def char() do
+    fn input ->
+      case input do
+        "" -> {:error, "cannot parse a char"}
+        <<char::utf8, rest::binary>> -> {:ok, char, rest}
+      end
+    end
+  end
+
   def char(a..b), do: char() |> satisfy(fn term -> term in a..b end)
+  def char(chars) when is_list(chars), do: char() |> satisfy(fn term -> term in chars end)
   def char(char), do: char() |> satisfy(fn term -> term == char end)
   def digit(), do: char() |> satisfy(fn term -> term in ?0..?9 end)
   def letter(), do: char() |> satisfy(fn term -> term in ?A..?Z or term in ?a..?z end)
@@ -117,7 +119,7 @@ defmodule ParserCombinator do
     fn input ->
       case parsers do
         [] ->
-          {:error, "None of the parsers suceeded"}
+          {:error, "None of the parsers suceeded on input '#{input}'"}
 
         [parser | rest_parsers] ->
           with {:error, _} <- parser.(input),
@@ -135,6 +137,10 @@ defmodule ParserCombinator do
 
   def identifier_char() do
     choice([digit(), char(?_), char(?a..?z), char(?A..?Z)])
+  end
+
+  def parens() do
+    choice([char([?), ?(, ?{, ?}, ?[, ?]])])
   end
 
   def satisfy(parser, acceptor) do
