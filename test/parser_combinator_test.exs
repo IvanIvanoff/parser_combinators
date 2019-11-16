@@ -3,6 +3,107 @@ defmodule ParserCombinatorTest do
   doctest ParserCombinator
   alias ParserCombinator, as: PS
 
+  describe "function call" do
+    test "0 arity function" do
+      input = "time()"
+      parser = PS.function_call()
+      assert parser.(input) == {:ok, %{arguments: [], name: "time", type: :function}, ""}
+    end
+
+    test "1 arity function" do
+      input = "last(btc_price)"
+      parser = PS.function_call()
+
+      assert parser.(input) ==
+               {:ok, %{arguments: ["btc_price"], name: "last", type: :function}, ""}
+    end
+
+    test "2 arity function" do
+      input = "percent_change(10, 20)"
+      parser = PS.function_call()
+
+      assert parser.(input) ==
+               {:ok, %{arguments: ["10", "20"], name: "percent_change", type: :function}, ""}
+    end
+  end
+
+  describe "number" do
+    test "integer" do
+      input = "20"
+      parser = PS.number()
+      assert parser.(input) == {:ok, 20, ""}
+    end
+
+    test "float" do
+      input = "3.1415"
+      parser = PS.number()
+      assert parser.(input) == {:ok, 3.1415, ""}
+    end
+  end
+
+  # describe "fire if" do
+  #   input = "FIRE IF last(btc_price) > 10000 AND percent_change(btc_price) >= 10"
+  #   parser = PS.fire_if()
+
+  #   assert parser.(input) ==
+  #            {:ok,
+  #             %{
+  #               type: :fire_if,
+  #               conditions: [
+  #                 condition: :and,
+  #                 left: %{
+  #                   operator: :>,
+  #                   left: %{operator: :last, argument: "btc_price"},
+  #                   right: 10_000
+  #                 },
+  #                 right: %{
+  #                   operator: :>=,
+  #                   left: %{
+  #                     operator: :>=,
+  #                     left: %{operator: :percent_change, argument: "btc_price"},
+  #                     right: 10
+  #                   }
+  #                 }
+  #               ]
+  #             }}
+  # end
+
+  describe "range" do
+    input = "range('bitcoin', '2019-01-01 00:00:00', '2019-01-10 00:00:00', '1d') AS btc_price"
+    parser = PS.range()
+
+    assert parser.(input) ==
+             {:ok,
+              %{
+                type: :range,
+                identifier: "bitcoin",
+                from: "2019-01-01 00:00:00",
+                to: "2019-01-10 00:00:00",
+                interval: "1d",
+                as: "btc_price"
+              }, ""}
+  end
+
+  describe "string" do
+    test "simple string" do
+      input = "'hooman'"
+      parser = PS.string()
+      assert parser.(input) == {:ok, "hooman", ""}
+    end
+
+    test "string with empty space" do
+      input = "'hoo man'"
+      parser = PS.string()
+      assert parser.(input) == {:ok, "hoo man", ""}
+    end
+
+    test "string with digits" do
+      input = "'1hoo man'"
+      parser = PS.string()
+      assert parser.(input) == {:ok, "1hoo man", ""}
+    end
+  end
+
   describe "empty separated" do
     test "word" do
       input = " (  "
@@ -19,15 +120,16 @@ defmodule ParserCombinatorTest do
     end
 
     test "simple query" do
-      input = " select  column
-      from table "
+      input = " SELECT  column
+      FROM table "
       parser = PS.select_statement()
 
       assert {:ok,
               %{
+                type: :sql_statement,
+                statement: :select,
                 columns: ["column"],
-                from: "table",
-                statement: :select
+                from: "table"
               }, ""} == parser.(input)
     end
 
@@ -40,9 +142,15 @@ defmodule ParserCombinatorTest do
 
       assert {:ok,
               %{
+                type: :sql_statement,
+                statement: :select,
                 columns: ["column"],
-                from: %{columns: ["v2"], from: "table", statement: :select},
-                statement: :select
+                from: %{
+                  type: :sql_statement,
+                  statement: :select,
+                  columns: ["v2"],
+                  from: "table"
+                }
               }, ""} == parser.(input)
     end
   end
