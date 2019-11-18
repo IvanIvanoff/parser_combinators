@@ -5,8 +5,9 @@ defmodule ParserCombinator do
   @single_quote ?'
 
   def input do
-    "SELECT range('bitcoin', '2019-01-01 00:00:00', '2019-01-10 00:00:00', '1d') AS btc_price
-    FROM prices"
+    # "SELECT range('bitcoin', '2019-01-01 00:00:00', '2019-01-10 00:00:00', '1d') AS btc_price
+    # FROM prices"
+    ""
   end
 
   def run do
@@ -14,6 +15,12 @@ defmodule ParserCombinator do
 
     parser = select_statement()
     parser.(input)
+  end
+
+  def signal_definition() do
+    sequence([
+      many(select_statement())
+    ])
   end
 
   def fire_if() do
@@ -26,7 +33,9 @@ defmodule ParserCombinator do
 
   def expression() do
     sequence([
-      operator()
+      choice([function_call(), token(number())]),
+      operator(),
+      choice([function_call(), token(number())])
     ])
   end
 
@@ -65,7 +74,18 @@ defmodule ParserCombinator do
   end
 
   def operator() do
-    choice([keyword(:>), keyword(:<), keyword(:>=), keyword(:<=), keyword(:=), keyword(:!=)])
+    choice([
+      token(char('>')),
+      token(char('<')),
+      token(char('>=')),
+      token(char('<=')),
+      token(char('=')),
+      token(char('!='))
+    ])
+    |> map(fn
+      [_ | _] = term -> term |> List.to_string()
+      term -> <<term>>
+    end)
   end
 
   def select_statement() do
@@ -158,7 +178,10 @@ defmodule ParserCombinator do
   end
 
   def keyword(word) do
-    token() |> satisfy(fn term -> String.downcase(term) == String.downcase(to_string(word)) end)
+    token()
+    |> satisfy(fn term ->
+      String.downcase(term) == String.downcase(to_string(word))
+    end)
   end
 
   def token(parser \\ identifier()) do

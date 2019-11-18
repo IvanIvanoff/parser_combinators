@@ -3,6 +3,14 @@ defmodule ParserCombinatorTest do
   doctest ParserCombinator
   alias ParserCombinator, as: PS
 
+  describe "operator" do
+    test ">" do
+      input = ">="
+      parser = PS.operator()
+      assert parser.(input) == {:ok, [:>], ""}
+    end
+  end
+
   describe "argument list" do
     test "integer argument" do
       input = "10"
@@ -77,27 +85,27 @@ defmodule ParserCombinatorTest do
   #   input = "FIRE IF last(btc_price) > 10000 AND percent_change(btc_price) >= 10"
   #   parser = PS.fire_if()
 
-  #   assert parser.(input) ==
-  #            {:ok,
-  #             %{
-  #               type: :fire_if,
-  #               conditions: [
-  #                 condition: :and,
-  #                 left: %{
-  #                   operator: :>,
-  #                   left: %{operator: :last, argument: "btc_price"},
-  #                   right: 10_000
-  #                 },
-  #                 right: %{
-  #                   operator: :>=,
-  #                   left: %{
-  #                     operator: :>=,
-  #                     left: %{operator: :percent_change, argument: "btc_price"},
-  #                     right: 10
-  #                   }
-  #                 }
-  #               ]
-  #             }}
+  #   assert parser.(input) == {:ok, "", ""}
+  #  {:ok,
+  #   %{
+  #     type: :fire_if,
+  #     conditions: [
+  #       condition: :and,
+  #       left: %{
+  #         operator: :>,
+  #         left: %{operator: :last, argument: "btc_price"},
+  #         right: 10_000
+  #       },
+  #       right: %{
+  #         operator: :>=,
+  #         left: %{
+  #           operator: :>=,
+  #           left: %{operator: :percent_change, argument: "btc_price"},
+  #           right: 10
+  #         }
+  #       }
+  #     ]
+  #   }}
   # end
 
   describe "range" do
