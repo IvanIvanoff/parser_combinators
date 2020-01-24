@@ -5,8 +5,6 @@ defmodule ParserCombinator do
   @single_quote ?'
 
   def input do
-    # "SELECT range('bitcoin', '2019-01-01 00:00:00', '2019-01-10 00:00:00', '1d') AS btc_price
-    # FROM prices"
     ""
   end
 
@@ -27,8 +25,17 @@ defmodule ParserCombinator do
     sequence([
       keyword(:fire),
       keyword(:if),
-      separated_list(expression(), choice([keyword(:and), keyword(:or), keyword(:not)]))
+      separated_list(expression(), choice([keyword(:and), keyword(:or), keyword(:not)]),
+        preserve_separator: true
+      )
     ])
+    |> map(fn [_fire, _if, list] ->
+      %{
+        type: :fire_if,
+        args: list,
+        meta: []
+      }
+    end)
   end
 
   def expression() do
@@ -37,6 +44,13 @@ defmodule ParserCombinator do
       operator(),
       choice([function_call(), token(number())])
     ])
+    |> map(fn [first, op, second] ->
+      %{
+        type: {:operator, op},
+        arguments: [first, second],
+        meta: []
+      }
+    end)
   end
 
   def argument_list() do
@@ -75,16 +89,16 @@ defmodule ParserCombinator do
 
   def operator() do
     choice([
+      token(sequence([char('>'), char('=')])),
+      token(sequence([char('<'), char('=')])),
+      token(sequence([char('!'), char('=')])),
       token(char('>')),
       token(char('<')),
-      token(char('>=')),
-      token(char('<=')),
-      token(char('=')),
-      token(char('!='))
+      token(char('='))
     ])
     |> map(fn
-      [_ | _] = term -> term |> List.to_string()
-      term -> <<term>>
+      [_ | _] = term -> term |> List.to_string() |> String.to_atom()
+      term -> <<term>> |> String.to_atom()
     end)
   end
 
@@ -167,13 +181,19 @@ defmodule ParserCombinator do
     |> map(fn [_open_paren, subquery, _closing_paren] -> subquery end)
   end
 
-  def separated_list(element_parser, separator_parser) do
+  def separated_list(element_parser, separator_parser, opts \\ []) do
     sequence([
       element_parser,
       sequence([separator_parser, element_parser]) |> many()
     ])
     |> map(fn [term, list] ->
-      [term | Enum.map(list, fn [_, t] -> t end)]
+      case Keyword.get(opts, :preserve_separator) == true do
+        true ->
+          [term, list]
+
+        _ ->
+          [term | Enum.map(list, fn [_, t] -> t end)]
+      end
     end)
   end
 

@@ -4,10 +4,40 @@ defmodule ParserCombinatorTest do
   alias ParserCombinator, as: PS
 
   describe "operator" do
-    test ">" do
+    test ">=" do
       input = ">="
       parser = PS.operator()
-      assert parser.(input) == {:ok, [:>], ""}
+      assert parser.(input) == {:ok, :>=, ""}
+    end
+
+    test "<=" do
+      input = "<="
+      parser = PS.operator()
+      assert parser.(input) == {:ok, :<=, ""}
+    end
+
+    test ">" do
+      input = ">"
+      parser = PS.operator()
+      assert parser.(input) == {:ok, :>, ""}
+    end
+
+    test "<" do
+      input = "<"
+      parser = PS.operator()
+      assert parser.(input) == {:ok, :<, ""}
+    end
+
+    test "=" do
+      input = "="
+      parser = PS.operator()
+      assert parser.(input) == {:ok, :=, ""}
+    end
+
+    test "!=" do
+      input = "!="
+      parser = PS.operator()
+      assert parser.(input) == {:ok, :!=, ""}
     end
   end
 
@@ -81,32 +111,42 @@ defmodule ParserCombinatorTest do
     end
   end
 
-  # describe "fire if" do
-  #   input = "FIRE IF last(btc_price) > 10000 AND percent_change(btc_price) >= 10"
-  #   parser = PS.fire_if()
+  describe "fire if" do
+    test "fire if" do
+      input = "FIRE IF last(btc_price) > 10000 AND percent_change(btc_price) >= 10"
+      parser = PS.fire_if()
 
-  #   assert parser.(input) == {:ok, "", ""}
-  #  {:ok,
-  #   %{
-  #     type: :fire_if,
-  #     conditions: [
-  #       condition: :and,
-  #       left: %{
-  #         operator: :>,
-  #         left: %{operator: :last, argument: "btc_price"},
-  #         right: 10_000
-  #       },
-  #       right: %{
-  #         operator: :>=,
-  #         left: %{
-  #           operator: :>=,
-  #           left: %{operator: :percent_change, argument: "btc_price"},
-  #           right: 10
-  #         }
-  #       }
-  #     ]
-  #   }}
-  # end
+      assert parser.(input) ==
+               {:ok,
+                %{
+                  meta: [],
+                  type: :fire_if,
+                  args: [
+                    %{
+                      type: {:operator, :>},
+                      arguments: [
+                        %{arguments: ["btc_price"], name: "last", type: :function},
+                        10000
+                      ],
+                      meta: []
+                    },
+                    [
+                      [
+                        "AND",
+                        type: {:operator, :>=},
+                        %{
+                          arguments: [
+                            %{arguments: ["btc_price"], name: "percent_change", type: :function},
+                            10
+                          ],
+                          meta: [],
+                        }
+                      ]
+                    ]
+                  ]
+                }, ""}
+    end
+  end
 
   describe "range" do
     input = "range('bitcoin', '2019-01-01 00:00:00', '2019-01-10 00:00:00', '1d') AS btc_price"
