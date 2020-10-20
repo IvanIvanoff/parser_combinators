@@ -196,7 +196,7 @@ defmodule ParserCombinatorTest do
     test "missing columns" do
       input = "select from table"
       parser = PS.select_statement()
-      assert {:error, "acceptor not satisfied on term '\"table\"'"} == parser.(input)
+      assert {:error, "Acceptor not satisfied on term '\"table\"'"} == parser.(input)
     end
 
     test "simple query" do
