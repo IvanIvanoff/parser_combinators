@@ -21,16 +21,15 @@ defmodule Expr do
         output_queue = [num]
         operator_stack = []
 
-        Enum.reduce(rest, {output_queue, operator_stack}),
-        fn [op, num], {out_queue, op_stack} ->
-
-        end
+        Enum.reduce(rest, {output_queue, operator_stack}, fn [op, num], {out_queue, op_stack} ->
+          nil
+        end)
     end
   end
 
   def eval_expr(expr_str) do
     case expr_parser().(expr_str) do
-      {:ok, _, ""} -> :ok
+      {:ok, [], ""} -> 0
       _ -> :error
     end
   end
@@ -47,6 +46,10 @@ defmodule Expr do
       non_empty,
       empty() |> many()
     ])
+    |> ParserCombinator.map(fn
+      [] -> []
+      [x, y, _empty_tokens] -> [x, y]
+    end)
   end
 
   def expr_operator() do

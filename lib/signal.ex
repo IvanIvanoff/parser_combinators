@@ -1,4 +1,4 @@
-defmodule Signal do
+defmodule SignalParser do
   import ParserCombinator
 
   @open_paren ?(
