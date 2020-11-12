@@ -103,9 +103,14 @@ defmodule ParserCombinator do
     ])
     |> satisfy(fn term -> length(term) > 0 end)
     |> map(fn
-      [_first_part, _dot, _second_part] = list -> list |> List.flatten() |> List.to_float()
-      [_ | _] = number -> number |> List.to_integer()
-      result -> {:error, "Cannot parse a number. Got '#{inspect(result)}'"}
+      [_first_part, ?., _second_part] = list ->
+        list |> List.flatten() |> List.to_float()
+
+      [_ | _] = number ->
+        number |> List.to_integer()
+
+      result ->
+        {:error, "Cannot parse a number. Got '#{inspect(result)}'"}
     end)
   end
 
@@ -175,10 +180,12 @@ defmodule ParserCombinator do
   def satisfy(parser, acceptor) do
     fn input ->
       with {:ok, term, rest} <- parser.(input) do
-        if(acceptor.(term)) do
-          {:ok, term, rest}
-        else
-          {:error, "Acceptor not satisfied on term '#{inspect(term)}'"}
+        case acceptor.(term) do
+          true ->
+            {:ok, term, rest}
+
+          false ->
+            {:error, "Acceptor not satisfied on term '#{inspect(term)}'"}
         end
       end
     end
